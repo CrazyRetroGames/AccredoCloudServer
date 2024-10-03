@@ -1,0 +1,55 @@
+﻿# Comments are provided throughout this file to help you get started.
+# If you need more help, visit the Docker Compose reference guide at
+# https://docs.docker.com/go/compose-spec-reference/
+
+# Here the instructions define your application as a service called "server".
+# This service is built from the Dockerfile in the current directory.
+# You can add other services your application may depend on here, such as a
+# database or a cache. For examples, see the Awesome Compose repository:
+# https://github.com/docker/awesome-compose
+services:
+  postgres_db:
+    image: postgres:16.3
+    restart: always
+    # Postgres in container always runs on port 5432
+    # This may be a setup issue or intended - Not known which at this point
+    ports:
+      - 3009:5432
+    user: postgres
+    networks:
+      - server-side
+    # Expose externally on port 3009
+    expose:
+      - 3009
+    environment:
+      POSTGRES_DB: "db"
+      POSTGRES_HOST_AUTH_METHOD: "trust"
+    healthcheck:
+      test: [ "CMD", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  bug_report_server:
+    dns: "8.8.8.8"
+    build:
+      context: .
+      target: final
+      dockerfile: Dockerfile
+    ports:
+      - 3000:3000
+    networks:
+      - server-side
+    environment:
+      PG_USER: postgres
+      PG_PASSWORD: postgres
+      PG_DB: postgres
+      PG_HOST: postgres_db
+      WS_HOST: host.docker.internal
+      # Must listen on 5432
+      PG_PORT: 5432
+    #      RUST_BACKTRACE: full
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+networks:
+  server-side: {}
